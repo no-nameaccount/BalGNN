@@ -1,10 +1,8 @@
 import torch
-import os
 import os.path as osp
 import torch_geometric.transforms as T
 from torch_geometric.datasets import Planetoid, WikipediaNetwork, WebKB
 from util import index_to_mask, mask_to_index
-import numpy as np
 
 def get_dataset(args, split, sparse=True, **kwargs):
 
@@ -81,7 +79,6 @@ def random_planetoid_splits(data, num_classes, seed, args):
         data.val_mask = index_to_mask(rest_index[:500], size=data.num_nodes)
         data.test_mask = index_to_mask(rest_index[500:1500], size=data.num_nodes)
     else:
-        # import ipdb;ipdb.set_trace()
         print(f"split: 60, 20, 20")
         train_index = torch.cat([i[:round(0.6 * len(i))] for i in indices], dim=0)
         valid_index = torch.cat([i[round(0.6 * len(i)): round(0.8 * len(i))] for i in indices], dim=0)

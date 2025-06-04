@@ -3,7 +3,6 @@
 import random
 import argparse
 import time
-import itertools
 
 from util import str2bool, Logger
 from model import get_model

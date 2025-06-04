@@ -43,7 +43,6 @@ class Logger(object):
             print(f'   Final Test: {result[argmax, 2]:.2f}')
 
     def print_statistics_f(self, final_result,run=None):
-            # import ipdb; ipdb.set_trace()
             result = 100 * torch.tensor(self.results)
 
             best_results = []
@@ -127,7 +126,6 @@ def torch_corr(x):
     xm = x - mean_x.view(-1, 1)
     c = xm.mm(xm.t())
 
-    # normalize covariance matrix
     d = torch.diag(c)
     stddev = torch.pow(d, 0.5)
     stddev = torch.where(stddev == 0, torch.tensor(1e-6, device=x.device), stddev)
@@ -150,7 +148,6 @@ def get_pairwise_sim(x):
         x = sp.csr_matrix(x)
     else:
         x = x / (np.sqrt(np.square(x).sum(1))+1e-10).reshape(-1,1)
-    # x = x / x.sum(1).reshape(-1,1)
     try:
         dis = euclidean_distances(x)
         return 0.5 * (dis.sum(1)/(dis.shape[1]-1)).mean()
@@ -158,7 +155,7 @@ def get_pairwise_sim(x):
         return -1
 
 def get_random_dimension_pair(x):
-    selected_columns = torch.randperm(x.shape[1])[:2]  # 무작위로 두 열 선택
+    selected_columns = torch.randperm(x.shape[1])[:2] 
     f_i, f_j = x[:, selected_columns[0]], x[:, selected_columns[1]]
     return selected_columns, f_i, f_j
 

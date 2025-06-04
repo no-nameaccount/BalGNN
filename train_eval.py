@@ -33,7 +33,7 @@ def test(model, data, split_idx, args):
 
     y_pred = out.argmax(dim=-1, keepdim=True)
     if len(data.y.shape) == 1:
-        y = data.y.unsqueeze(dim=1) # for non ogb datas
+        y = data.y.unsqueeze(dim=1) 
     else:
         y = data.y
 
