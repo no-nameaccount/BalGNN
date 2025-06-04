@@ -1,0 +1,1 @@
+python main.py --dataset Cora --model_type BalGNN
