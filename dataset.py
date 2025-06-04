@@ -1,5 +1,3 @@
-"""Based on   https://github.com/hualiu829/DeProp/tree/main"""
-
 import torch
 import os
 import os.path as osp
