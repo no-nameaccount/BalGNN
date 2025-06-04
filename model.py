@@ -95,7 +95,7 @@ class BalGNN(torch.nn.Module):
 
 class BalGNN_GAT(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_channels, dropout, args):
-        super(BalGNN, self).__init__()
+        super(BalGNN_GAT, self).__init__()
         self.alpha = args.alpha
         self.num_layers = args.num_layers
         self.dropout = dropout
