@@ -30,7 +30,7 @@ def train(model, data, train_idx, optimizer, train_y,args):
 def test(model, data, split_idx, train_y, args):
     model.eval()
     with torch.no_grad():
-            out, reps, sim, corr =model(x=data.x, adj_t=data.adj_t, y = train_y, test_true=True) # ours
+            out, sim, corr =model(x=data.x, adj_t=data.adj_t, y = train_y, test_true=True) # ours
     y_pred = out.argmax(dim=-1, keepdim=True)
     if len(data.y.shape) == 1:
         y = data.y.unsqueeze(dim=1) 
