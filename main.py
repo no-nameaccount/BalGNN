@@ -24,16 +24,17 @@ def parse_args():
     parser.add_argument('--weight_decay', type=float, default=5e-4)
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--epochs', type=int, default=600)
-    parser.add_argument('--runs', type=int, default=2)
+    parser.add_argument('--runs', type=int, default=1)
     parser.add_argument('--normalize_features', type=str2bool, default=True)
-    parser.add_argument('--random_splits', type=int, default=5, help='default: fix split')
-    parser.add_argument('--seed', type=int, default=1234)
+    parser.add_argument('--random_splits', type=int, default=10, help='default: fix split')
+    parser.add_argument('--seed', type=int, default=12)
     parser.add_argument('--fix_split', type=str2bool, default=False)
-    parser.add_argument('--alpha', type=int, default = 0.5)
-    parser.add_argument('--beta', type=int, default = 0.5)
-    parser.add_argument('--missing_rate', type=float, default=100, help='missing_rate.')
+    parser.add_argument('--alpha', type=float, default = 0.5)
+    parser.add_argument('--beta', type=float, default = 1)
+
     parser.add_argument('--model_type', type=str, default='BalGNN', help='{BalGNN, BalGNN_GAT}')
-    parser.add_argument('--log', type=str, default='results.txt')
+    parser.add_argument('--log', type=str, default='final.txt')
+
     args = parser.parse_args()
     return args
 
@@ -64,6 +65,8 @@ def main( ):
     logger = Logger(args.runs * random_split_num)
     total_start = time.perf_counter()
 
+    corr_list = []
+
     for split in range(random_split_num):
         dataset, data, split_idx = get_dataset(args, split)
         train_idx = split_idx['train']
@@ -74,7 +77,11 @@ def main( ):
 
         model = get_model(args, dataset)
         print(model)
-
+        train_y = data.y.clone()
+        mask = torch.ones_like(train_y, dtype=torch.bool)
+        mask[train_idx] = False
+        num_classes = int(train_y.max().item() + 1) 
+        
         for run in range(args.runs):
             runs_overall = split * args.runs + run
             model.reset_parameters()
@@ -83,8 +90,12 @@ def main( ):
             t_start = time.perf_counter()
             for epoch in range(1, 1 + args.epochs):
                 args.current_epoch = epoch
-                loss = train(model, data, train_idx, optimizer, args)
-                result, sim, corr, mi = test(model, data, split_idx, args)
+                random_labels = torch.randint(0, num_classes, (mask.sum().item(),), device=train_y.device)
+                train_y[mask] = random_labels   
+                args.current_epoch = epoch
+                loss = train(model, data, train_idx, optimizer, train_y, args)
+                result, corr = test(model, data, split_idx, train_y, args)
+                corr_list.append(corr)
                 train_acc, valid_acc, test_acc = result
                 
                 if valid_acc > best_acc_val:
@@ -117,10 +128,13 @@ def main( ):
     final_result  = ""
 
     print('total time: ', total_duration)
+    mean_corr, std_corr = np.mean(corr_list), np.std(corr_list)
+
     final_result = (
-        "----------------------------------------"
-        f"Dataset: {args.dataset}, Layers: {args.num_layers}, \n"
-        f"Total Time: {total_duration:.2f}s,")
+        "----------------------------------------\n"
+        f"Model: {args.model_type}, Dataset: {args.dataset}, Layers: {args.num_layers}\n"
+        f"Mean Corr: {mean_corr:.4f} ± {std_corr:.4f}\n"
+    )
 
 
     final_result = logger.print_statistics_f(final_result)

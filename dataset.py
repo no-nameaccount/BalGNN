@@ -1,9 +1,10 @@
 import torch
 import os.path as osp
+import os
 import torch_geometric.transforms as T
 from torch_geometric.datasets import Planetoid, WikipediaNetwork, WebKB
 from util import index_to_mask, mask_to_index
-
+import numpy as np
 def get_dataset(args, split, sparse=True, **kwargs):
 
     if sparse:
@@ -38,7 +39,7 @@ def get_dataset(args, split, sparse=True, **kwargs):
     split_idx['train'] = mask_to_index(data.train_mask)
     split_idx['valid'] = mask_to_index(data.val_mask)
     split_idx['test']  = mask_to_index(data.test_mask)
-
+    
     return dataset, data, split_idx
 
 

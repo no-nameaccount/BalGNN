@@ -1,12 +1,13 @@
 import torch
 import torch.nn.functional as F
 from ogb.nodeproppred import Evaluator
+import numpy as np
 
-
-def train(model, data, train_idx, optimizer, args):
+def train(model, data, train_idx, optimizer, train_y,args):
     model.train()
     optimizer.zero_grad()
-    out = model(x=data.x, adj_t=data.adj_t, y = data.y)[train_idx]
+
+    out = model(x=data.x, adj_t=data.adj_t, y = train_y)[train_idx] # ours
 
     if len(data.y.shape) == 1:
         y = data.y[train_idx]
@@ -14,11 +15,11 @@ def train(model, data, train_idx, optimizer, args):
         y = data.y.squeeze(1)[train_idx]  
 
     loss = args.beta * F.nll_loss(out, y)
-    loss += model.loss_corr 
+    loss += model.loss_corr # ours
     loss.backward()
     optimizer.step()
 
-    if model.loss_corr!=0:    
+    if model.loss_corr!=0:    #ours
         model.loss_corr = 0
 
     return loss.item()
@@ -26,11 +27,10 @@ def train(model, data, train_idx, optimizer, args):
 
 
 @torch.no_grad()
-def test(model, data, split_idx, args):
+def test(model, data, split_idx, train_y, args):
     model.eval()
     with torch.no_grad():
-        out, sim, corr, mi = model(x=data.x, adj_t=data.adj_t, y = data.y, test_true=True) 
-
+            out, reps, sim, corr =model(x=data.x, adj_t=data.adj_t, y = train_y, test_true=True) # ours
     y_pred = out.argmax(dim=-1, keepdim=True)
     if len(data.y.shape) == 1:
         y = data.y.unsqueeze(dim=1) 
@@ -51,7 +51,7 @@ def test(model, data, split_idx, args):
         'y_pred': y_pred[split_idx['test']],
     })['acc']
 
-    return (train_acc, valid_acc, test_acc), sim, corr, mi
+    return (train_acc, valid_acc, test_acc), corr
 
 
 

@@ -20,6 +20,15 @@ def matrix_norm(x, epsilon=1e-6):
     std = x.std() + epsilon
     return (x - mean) / std
 
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+from torch.nn.parameter import Parameter
+from util import *
+from infomax import Infomax
+
 class BalGNN(torch.nn.Module):
     def __init__(self, in_dim, hidden_dim, out_channels, dropout, args):
         super(BalGNN, self).__init__()
@@ -64,7 +73,6 @@ class BalGNN(torch.nn.Module):
         x = matrix_norm(x) 
         x = F.relu(x)
         x_init = x
-
         self.apply_infomax_loss(x, y, i=0)
 
         # Hidden layers
@@ -77,9 +85,7 @@ class BalGNN(torch.nn.Module):
 
         # Initial feature flow
         x = x + x_init
-
-        mi = MI_measure(x, y)
-
+        last_rep = x
         # Output layer
         x = self.conv_out(x, adj_t)
 
@@ -89,7 +95,7 @@ class BalGNN(torch.nn.Module):
             n = corr.shape[0]
             corr = corr.sum().item() / (n * (n - 1) / 2)
             sim = get_pairwise_sim(x)
-            return F.log_softmax(x, dim=1), sim, corr, mi
+            return F.log_softmax(x, dim=1), last_rep, sim, corr
 
         return F.log_softmax(x, dim=1)
 
@@ -151,8 +157,6 @@ class BalGNN_GAT(torch.nn.Module):
         # Initial feature flow
         x = x + x_init
 
-        mi = MI_measure(x, y)
-
         # Output layer
         x = self.conv_out(x, adj_t)
 
@@ -162,9 +166,55 @@ class BalGNN_GAT(torch.nn.Module):
             n = corr.shape[0]
             corr = corr.sum().item() / (n * (n - 1) / 2)
             sim = get_pairwise_sim(x)
-            return F.log_softmax(x, dim=1), sim, corr, mi
+            return F.log_softmax(x, dim=1), sim, corr
 
         return F.log_softmax(x, dim=1)
+
+
+class GCN(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, dropout, args):
+        super(GCN, self).__init__()
+
+        self.num_layers = args.num_layers
+        self.conv_in = GCNConv(in_channels, hidden_channels)
+        self.convs = torch.nn.ModuleList()
+        for i in range(self.num_layers-2):
+            self.convs.append(GCNConv(hidden_channels, hidden_channels))
+
+        self.conv_out = GCNConv(hidden_channels, out_channels)
+        self.dropout = dropout
+        self.smooth = True
+        self.loss_corr = 0
+        print(f"GCN model")
+
+    def reset_parameters(self):
+        self.conv_in.reset_parameters()
+        for i, conv in enumerate(self.convs):
+            conv.reset_parameters()
+        self.conv_out.reset_parameters()
+
+    def forward(self, x, adj_t, y, train_adj=None, test_true=False):
+
+        x, adj_t, train_adj= x, adj_t, train_adj
+        x = self.conv_in(x, adj_t)
+        x = F.relu(x)
+        x = F.dropout(x, p=self.dropout, training=self.training)
+        for i, conv in enumerate(self.convs):
+            x = conv(x, adj_t)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+
+        x = self.conv_out(x, adj_t)
+        if self.smooth and test_true:
+            corr = torch_corr(x.t())
+            corr = torch.triu(corr, 1).abs()
+            n = corr.shape[0]
+            corr = corr.sum().item() / (n * (n - 1) / 2)
+            sim = get_pairwise_sim(x)
+            return F.log_softmax(x, dim=1), sim, corr
+
+        return F.log_softmax(x, dim=1)
+
 
 def get_model(args, dataset):
     data = dataset[0]
@@ -183,8 +233,16 @@ def get_model(args, dataset):
                         dropout=args.dropout,
                         args=args
                         ).cuda()
+    elif args.model_type == "Ori":
+        print(f"getmodel_GCN")
+        model = GCN(in_channels=data.num_features,
+                    hidden_channels=args.hidden_dim,
+                    out_channels=dataset.num_classes,
+                    dropout=args.dropout,
+                    args=args,
+                    ).cuda()
+    
     else:
         raise Exception(f'Wrong model_type')
-    
-    return model
 
+    return model

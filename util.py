@@ -162,7 +162,6 @@ def get_random_dimension_pair(x):
 def correlation_coefficient(x, y):
     x = x.view(-1)
     y = y.view(-1)
-    
     mean_x = torch.mean(x)
     mean_y = torch.mean(y)
 
@@ -174,3 +173,16 @@ def correlation_coefficient(x, y):
     corr = torch.abs(corr)
     
     return corr
+
+
+def loss_corr(x, nnodes=None):
+    if nnodes is None:
+        nnodes = x.shape[0]
+    idx = np.random.choice(x.shape[0], int(np.sqrt(nnodes)))
+    x = x[idx]
+    x = x - x.mean(0)
+    cov = x.t() @ x
+    I_k = torch.eye(x.shape[1]).cuda() / np.sqrt(x.shape[1])
+    loss = torch.norm(cov/torch.norm(cov) - I_k)
+    return loss
+
